@@ -306,6 +306,7 @@ pub trait Execute: Sized + GetAccountTransactionContext + GetTransactionCalldata
         block_context: &BlockContext,
         account_tx_context: &AccountTransactionContext,
         disable_nonce_validation: bool,
+        disable_fee_charging: bool,
     ) -> TransactionExecutionResult<()> {
         // Handle nonce.
 
@@ -314,7 +315,7 @@ pub trait Execute: Sized + GetAccountTransactionContext + GetTransactionCalldata
         }
 
         // Check fee balance.
-        if account_tx_context.max_fee != Fee(0) {
+        if account_tx_context.max_fee != Fee(0) && !disable_fee_charging {
             let (balance_low, balance_high) =
                 state.get_fee_token_balance(block_context, &account_tx_context.sender_address)?;
 
@@ -336,6 +337,7 @@ pub trait Execute: Sized + GetAccountTransactionContext + GetTransactionCalldata
         block_context: &BlockContext,
         is_query: bool,
         disable_nonce_validation: bool,
+        disable_fee_charging: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let mut execution_resources = ExecutionResources::default();
         let mut remaining_gas = TX_INITIAL_AVAILABLE_GAS;
@@ -343,7 +345,7 @@ pub trait Execute: Sized + GetAccountTransactionContext + GetTransactionCalldata
         let account_tx_context = self.get_account_transaction_context(is_query);
 
         // Nonce and fee check should be done before running user code.
-        Self::handle_nonce_and_check_fee_balance(state, block_context, &account_tx_context, disable_nonce_validation)?;
+        Self::handle_nonce_and_check_fee_balance(state, block_context, &account_tx_context, disable_nonce_validation, disable_fee_charging)?;
 
         // execute
         let ValidateExecuteCallInfo { validate_call_info, execute_call_info, revert_error } = self.execute_inner(
@@ -361,6 +363,7 @@ pub trait Execute: Sized + GetAccountTransactionContext + GetTransactionCalldata
             &mut execution_resources,
             block_context,
             account_tx_context,
+            disable_fee_charging
         )?;
 
         let tx_execution_info = TransactionExecutionInfo {
@@ -383,6 +386,7 @@ pub trait Execute: Sized + GetAccountTransactionContext + GetTransactionCalldata
         execution_resources: &mut ExecutionResources,
         block_context: &BlockContext,
         account_tx_context: AccountTransactionContext,
+        disable_fee_charging: bool,
     ) -> TransactionExecutionResult<(Fee, Option<CallInfo>, ResourcesMapping)> {
         let actual_resources = compute_transaction_resources(
             state,
@@ -394,7 +398,7 @@ pub trait Execute: Sized + GetAccountTransactionContext + GetTransactionCalldata
         )?;
 
         let (actual_fee, fee_transfer_call_info) =
-            charge_fee(state, block_context, account_tx_context, &actual_resources)?;
+            charge_fee(state, block_context, account_tx_context, &actual_resources, disable_fee_charging)?;
 
         Ok((actual_fee, fee_transfer_call_info, actual_resources))
     }
@@ -546,6 +550,7 @@ impl Execute for L1HandlerTransaction {
         execution_resources: &mut ExecutionResources,
         block_context: &BlockContext,
         _account_tx_context: AccountTransactionContext,
+        _disable_fee_charging: bool,
     ) -> TransactionExecutionResult<(Fee, Option<CallInfo>, ResourcesMapping)> {
         // The calldata includes the "from" field, which is not a part of the payload.
         let l1_handler_payload_size = self.calldata().0.len() - 1;

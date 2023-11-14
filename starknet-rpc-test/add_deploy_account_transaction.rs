@@ -90,6 +90,7 @@ async fn works_with_storage_change(madara: &ThreadSafeMadaraClient) -> Result<()
             transaction_hash: _,
             contract_address,
         })) => {
+            println!("{:?} {:?}", contract_address, account_address);
             assert_eq!(contract_address, account_address);
         }
         _ => panic!("Expected declare transaction result"),

@@ -499,6 +499,7 @@ pub mod pallet {
                     &Self::get_block_context(),
                     false,
                     T::DisableNonceValidation::get(),
+                    false,
                 )
                 .map_err(|e| {
                     log::error!("failed to execute invoke tx: {:?}", e);
@@ -562,6 +563,7 @@ pub mod pallet {
                     &Self::get_block_context(),
                     false,
                     T::DisableNonceValidation::get(),
+                    false,
                 )
                 .map_err(|_| Error::<T>::TransactionExecutionFailed)?;
 
@@ -612,6 +614,7 @@ pub mod pallet {
                     &Self::get_block_context(),
                     false,
                     T::DisableNonceValidation::get(),
+                    false,
                 )
                 .map_err(|e| {
                     log::error!("failed to deploy accout: {:?}", e);
@@ -668,6 +671,7 @@ pub mod pallet {
                     &Self::get_block_context(),
                     false,
                     T::DisableNonceValidation::get(),
+                    false,
                 )
                 .map_err(|e| {
                     log::error!("Failed to consume l1 message: {}", e);
@@ -1097,6 +1101,7 @@ impl<T: Config> Pallet<T> {
             txs: Vec<UserTransaction>,
             block_context: &BlockContext,
             disable_nonce_validation: bool,
+            disable_fee_charging: bool,
             chain_id: Felt252Wrapper,
         ) -> Vec<TransactionExecutionResult<TransactionExecutionInfo>> {
             let mut execution_results = vec![];
@@ -1113,6 +1118,7 @@ impl<T: Config> Pallet<T> {
                                 block_context,
                                 true,
                                 disable_nonce_validation,
+                                disable_fee_charging,
                             )
                         }
                         UserTransaction::DeployAccount(tx) => {
@@ -1122,6 +1128,7 @@ impl<T: Config> Pallet<T> {
                                 block_context,
                                 true,
                                 disable_nonce_validation,
+                                disable_fee_charging,
                             )
                         }
                         UserTransaction::Invoke(tx) => {
@@ -1131,6 +1138,7 @@ impl<T: Config> Pallet<T> {
                                 block_context,
                                 true,
                                 disable_nonce_validation,
+                                disable_fee_charging,
                             )
                         }
                     };
@@ -1145,6 +1153,7 @@ impl<T: Config> Pallet<T> {
             transactions,
             &Self::get_block_context(),
             T::DisableNonceValidation::get(),
+            disable_fee_charging,
             chain_id,
         );
 

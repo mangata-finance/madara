@@ -164,7 +164,10 @@ fn fetch_and_validate_genesis_assets(base_remote_url: &Url, file: FileInfos, bas
 
     // Copy
     let file_as_bytes = {
-        let response = reqwest::blocking::get(full_url.clone()).map_err(|e| Error::Application(Box::new(e)))?;
+        use reqwest::blocking::Client;
+        let client = Client::new();
+        let response = client.get(full_url.clone()).timeout(core::time::Duration::new(300, 0)).send().map_err(|e| Error::Application(Box::new(e)))?;
+        // let response = reqwest::blocking::get(full_url.clone()).map_err(|e| Error::Application(Box::new(e)))?;
         let bytes = response.bytes().map_err(|e| Error::Application(Box::new(e)))?;
         write_content_to_disk(&bytes, &dest_path.join(file.name))?;
         bytes

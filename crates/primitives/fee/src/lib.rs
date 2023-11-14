@@ -80,8 +80,9 @@ pub fn charge_fee<S: State + StateChanges + FeeConfig>(
     block_context: &BlockContext,
     account_tx_context: AccountTransactionContext,
     resources: &ResourcesMapping,
+    disable_fee_charging: bool,
 ) -> TransactionExecutionResult<(Fee, Option<CallInfo>)> {
-    if state.is_transaction_fee_disabled() {
+    if state.is_transaction_fee_disabled() || disable_fee_charging {
         return Ok((Fee(0), None));
     }
 
