@@ -59,7 +59,7 @@ fn build_invoke_transaction(address: ContractAddress) -> InvokeTransaction {
     })
 }
 
-fn get_balance_default_mock(account_address: ContractAddress) -> (Felt252Wrapper, Felt252Wrapper) {
+pub fn get_balance_default_mock(account_address: ContractAddress) -> (Felt252Wrapper, Felt252Wrapper) {
     let (selector, calldata) = build_get_balance_call(account_address);
     let result = default_mock::Starknet::call_contract(
         ContractAddress(PatriciaKey(StarkFelt::try_from(FEE_TOKEN_ADDRESS).unwrap())),

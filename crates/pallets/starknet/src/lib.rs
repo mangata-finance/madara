@@ -55,11 +55,13 @@ pub mod types;
 /// Everything needed to run the pallet offchain workers
 mod offchain_worker;
 
-use blockifier::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
+use blockifier::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext, Retdata};
 use blockifier::state::cached_state::ContractStorageKey;
 use blockifier::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Calldata, Event as StarknetEvent, Fee};
+use mp_transactions::{InvokeTransactionV1};
+use starknet_core::utils::get_selector_from_name;
 
 #[cfg(test)]
 mod tests;
@@ -108,6 +110,164 @@ pub(crate) const LOG_TARGET: &str = "runtime::starknet";
 pub const ETHEREUM_EXECUTION_RPC: &[u8] = b"starknet::ETHEREUM_EXECUTION_RPC";
 pub const ETHEREUM_CONSENSUS_RPC: &[u8] = b"starknet::ETHEREUM_CONSENSUS_RPC";
 pub(crate) const NONCE_DECODE_FAILURE: u8 = 1;
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub struct MadaraExecutorCalls(Vec<MadaraExecutorCall>);
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub struct MadaraExecutorCallsResults(Vec<MadaraExecutorCallResult>);
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub enum MadaraExecutorCallResult{
+    EchoU8Result(u8),
+    EchoU8aResult(Vec<u8>),
+    EchoU8U128Result((u8, u128)),
+    EchoOptionU8U128Result(Option<(u8, u128)>),
+}
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub enum MadaraExecutorCall{
+    EchoU8(u8),
+    EchoU8a(Vec<u8>),
+    EchoU8U128((u8, u128)),
+    EchoOptionU8U128(Option<(u8, u128)>),
+}
+
+impl From<MadaraExecutorCall> for Vec<Felt252Wrapper>{
+    fn from(input: MadaraExecutorCall) -> Vec<Felt252Wrapper>{
+        let mut vec_felt: Vec<Felt252Wrapper> = Vec::<Felt252Wrapper>::new();
+        match input{
+            MadaraExecutorCall::EchoU8(i) => {
+                vec_felt.push(Felt252Wrapper::from(get_selector_from_name("echo_u8").unwrap()));
+                vec_felt.push(1_u8.into());
+                vec_felt.push(i.into());
+            },
+            MadaraExecutorCall::EchoU8a(i) => {
+                vec_felt.push(Felt252Wrapper::from(get_selector_from_name("echo_u8a").unwrap()));
+                vec_felt.push(i.len().into());
+                vec_felt.append(&mut i.into_iter().map(move |x| x.into()).collect::<Vec<Felt252Wrapper>>());
+            },
+            MadaraExecutorCall::EchoU8U128((x,y)) => {
+                vec_felt.push(Felt252Wrapper::from(get_selector_from_name("echo_u8_u128").unwrap()));
+                vec_felt.push(2_u8.into());
+                vec_felt.push(x.into());
+                vec_felt.push(y.into());
+            },
+            MadaraExecutorCall::EchoOptionU8U128(o) => {
+                vec_felt.push(Felt252Wrapper::from(get_selector_from_name("echo_option_u8_u128").unwrap()));
+                match o{
+                    Some((x,y)) => {
+                        vec_felt.push(3_u8.into());
+                        vec_felt.push(0_u8.into());
+                        vec_felt.push(x.into());
+                        vec_felt.push(y.into());
+                    },
+                    None => {
+                        vec_felt.push(1_u8.into());
+                        vec_felt.push(1_u8.into());
+
+                    }
+                }
+            }
+        }
+        vec_felt
+    }
+}
+
+impl MadaraExecutorCall {
+    fn get_call_result(&self, buffer: &[StarkFelt]) -> Result<MadaraExecutorCallResult, ()>{
+        match self{
+            MadaraExecutorCall::EchoU8(_) => {
+                ensure!(buffer.len() == 1, ());
+                Ok(MadaraExecutorCallResult::EchoU8Result(Felt252Wrapper::from(buffer[0]).try_into().map_err(|_|())?))
+            },
+            MadaraExecutorCall::EchoU8a(_) => {
+                ensure!(buffer.len() >= 1, ());
+                let number_of_elements = Felt252Wrapper::from(buffer[0]).try_into().map_err(|_|())?;
+                ensure!(buffer.len() >= number_of_elements+1, ());
+                let mut u8a: Vec<u8> = Vec::<u8>::new();
+                for i in 0..number_of_elements{
+                    u8a.push(Felt252Wrapper::from(buffer[i+1]).try_into().map_err(|_|())?)
+                }
+                Ok(MadaraExecutorCallResult::EchoU8aResult(u8a))
+            },
+            MadaraExecutorCall::EchoU8U128(_) => {
+                ensure!(buffer.len() == 2, ());
+                Ok(MadaraExecutorCallResult::EchoU8U128Result((
+                    Felt252Wrapper::from(buffer[0]).try_into().map_err(|_|())?,
+                    Felt252Wrapper::from(buffer[1]).try_into().map_err(|_|())?
+                )))
+            },
+            MadaraExecutorCall::EchoOptionU8U128(_) => {
+                ensure!(buffer.len() >= 1, ());
+                match Felt252Wrapper::from(buffer[0]).try_into().map_err(|_|())?{
+                    0_u8 => {
+                        ensure!(buffer.len() == 3, ());
+                        Ok(MadaraExecutorCallResult::EchoOptionU8U128Result(Some((
+                            Felt252Wrapper::from(buffer[1]).try_into().map_err(|_|())?,
+                            Felt252Wrapper::from(buffer[2]).try_into().map_err(|_|())?
+                        ))))
+                    },
+                    1_u8 => {
+                        ensure!(buffer.len() == 1, ());
+                        Ok(MadaraExecutorCallResult::EchoOptionU8U128Result(None))
+                    },
+                    _ => return Err(())
+                }
+            }
+        }
+    }
+}
+
+// impl From<MadaraExecutorCalls> for Vec<Felt252Wrapper>{
+//     fn from(input: MadaraExecutorCalls) -> Vec<Felt252Wrapper>{
+//         let mut vec_felt: Vec<Felt252Wrapper> = Vec::<Felt252Wrapper>::new();
+//         vec_felt.push(input.0.len().into());
+//         for call in input.0{
+//             vec_felt.append(&mut call.into());
+//         }
+//         vec_felt
+//     }
+// }
+
+impl MadaraExecutorCalls {
+    fn to_invoke_transaction_v1(&self, sender: ContractAddress, target: ContractAddress) -> InvokeTransactionV1{
+        let mut vec_felt: Vec<Felt252Wrapper> = Vec::<Felt252Wrapper>::new();
+        vec_felt.push(self.0.len().into());
+        for call in &self.0{
+            vec_felt.push(target.into());
+            vec_felt.append(&mut (*call).clone().into());
+        }
+        
+        InvokeTransactionV1 {
+            sender_address: sender.into(),
+            calldata: vec_felt,
+            nonce: Felt252Wrapper::ZERO,
+            max_fee: u128::MAX,
+            signature: vec![],
+        }
+    }
+
+    fn get_calls_results(&self, retdata: &Retdata) -> Result<MadaraExecutorCallsResults, ()>{
+        let retdata_len = retdata.0.len();
+        ensure!(retdata_len >=1, ());
+        let number_of_calls_results:usize = Felt252Wrapper::from(retdata.0[0]).try_into().expect("Number of calls results is within usize");
+        ensure!(number_of_calls_results == self.0.len(), ());
+        let mut calls_results: Vec<MadaraExecutorCallResult> = Vec::<MadaraExecutorCallResult>::new();
+        let mut offset: usize = 1;
+        for i in 0..number_of_calls_results{
+            ensure!(retdata_len >=offset+1, ());
+            let call_result_len: usize = Felt252Wrapper::from(retdata.0[offset]).try_into().expect("call_result_len is within usize");
+            ensure!(retdata_len >=call_result_len+offset+1, ());
+            calls_results.push(
+                self.0[i].get_call_result(&retdata.0[(offset+1)..(call_result_len+offset+1)])?
+            );
+            offset = call_result_len+offset+1;
+        }
+        ensure!(offset == retdata_len, ());
+        Ok(MadaraExecutorCallsResults(calls_results))
+    }
+}
 
 // syntactic sugar for logging.
 #[macro_export]
@@ -325,6 +485,16 @@ pub mod pallet {
     #[pallet::getter(fn seq_addr_update)]
     pub type SeqAddrUpdate<T: Config> = StorageValue<_, bool, ValueQuery>;
 
+    #[pallet::storage]
+    #[pallet::unbounded]
+    #[pallet::getter(fn madara_runtime_origin)]
+    pub type MadaraRuntimeOrigin<T: Config> = StorageValue<_, ContractAddress, OptionQuery>;
+
+    #[pallet::storage]
+    #[pallet::unbounded]
+    #[pallet::getter(fn madara_executor_target)]
+    pub type MadaraExecutorTarget<T: Config> = StorageValue<_, ContractAddress, OptionQuery>;
+
     /// Starknet genesis configuration.
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
@@ -346,6 +516,11 @@ pub mod pallet {
         pub fee_token_address: ContractAddress,
         pub _phantom: PhantomData<T>,
         pub seq_addr_updated: bool,
+        // pub local_contracts: Vec<(ContractAddress, ClassHash)>,
+        // pub local_contract_classes: Vec<(ClassHash, ContractClass)>,
+        // pub local_storage: Vec<(ContractStorageKey, StarkFelt)>,
+        pub madara_runtime_origin: ContractAddress,
+        pub madara_executor_target: ContractAddress,
     }
 
     /// `Default` impl required by `pallet::GenesisBuild`.
@@ -358,6 +533,11 @@ pub mod pallet {
                 fee_token_address: ContractAddress::default(),
                 _phantom: PhantomData,
                 seq_addr_updated: true,
+                // local_contracts: vec![],
+                // local_contract_classes: vec![],
+                // local_storage: vec![],
+                madara_runtime_origin: ContractAddress::default(),
+                madara_executor_target: ContractAddress::default(),
             }
         }
     }
@@ -387,6 +567,69 @@ pub mod pallet {
             // Set the fee token address from the genesis config.
             FeeTokenAddress::<T>::set(self.fee_token_address);
             SeqAddrUpdate::<T>::put(self.seq_addr_updated);
+
+            // for (address, class_hash) in self.local_contracts.iter() {
+            //     match ContractClassHashes::<T>::get(address){
+            //         ClassHash::zero() => {
+            //             ContractClassHashes::<T>::insert(address, class_hash);
+            //         },
+            //         stored_class_hash if stored_class_hash == class_hash => {
+            //             log!(
+            //                 debug,
+            //                 "Local genesis contract address {:?} is already deployed with the SAME class hash {:?} - skipping",
+            //                 address,
+            //                 class_hash
+            //             );
+                        
+            //         }
+            //         stored_class_hash if stored_class_hash != class_hash => {
+            //             panic!("Local genesis contract address {:?} is already deployed with class hash {:?}", address, stored_class_hash);
+            //         }
+                     
+            //     }
+            // }
+
+            // for (class_hash, contract_class) in self.local_contract_classes.iter() {
+            //     match ContractClasses::<T>::get(class_hash){
+            //         None => {
+            //             ContractClasses::<T>::insert(class_hash, contract_class);
+            //         },
+            //         Some(stored_contract_class) if stored_contract_class == contract_class => {
+            //             log!(
+            //                 debug,
+            //                 "Local genesis contract class hash {:?} is already declared with different contract class",
+            //                 class_hash
+            //             );
+                        
+            //         }
+            //         Some(stored_contract_class) if stored_contract_class != contract_class => {
+            //             panic!("Local genesis contract class hash {:?} is already declared with different contract class", class_hash);
+            //         }
+                     
+            //     }
+            // }
+
+            // for (key, value) in self.local_storage.iter() {
+            //     match StorageView::<>::get(key){
+            //         StarkFelt::zero() =>{
+            //             StorageView::<T>::insert(key, value);
+            //         },
+            //         stored_value if stored_value == value => {
+            //             log!(
+            //                 debug,
+            //                 "Local genesis storage key {:?} is already populated with the SAME value {:?}", key, value
+            //             );
+                        
+            //         }
+            //         stored_value if stored_value != value => {
+            //             panic!("Local genesis storage key {:?} is already populated with value {:?}", key, value);
+            //         }
+            //     }
+            // }
+
+            MadaraRuntimeOrigin::<T>::put(self.madara_runtime_origin);
+            MadaraExecutorTarget::<T>::put(self.madara_executor_target);
+            
         }
     }
 
@@ -430,6 +673,13 @@ pub mod pallet {
         SequencerAddressNotValid,
         InvalidContractClassForThisDeclareVersion,
         Unimplemented,
+        MadaraRuntimeOriginIsPrivileged,
+        MadaraRuntimeOriginSenderAddressOnly,
+        CallsExecutionFailed,
+        CallsExecutionCallInfoMissing,
+        NoMadaraRuntimeOriginDefined,
+        NoMadaraExecutorTargetDefined,
+        RetdataDecodingFailed
     }
 
     /// The Starknet pallet external functions.
@@ -463,6 +713,125 @@ pub mod pallet {
             Ok(())
         }
 
+        #[pallet::call_index(5)]
+        #[pallet::weight({0})]
+        pub fn set_madara_runtime_origin_address(origin: OriginFor<T>, address: ContractAddress) -> DispatchResult {
+            // This ensures that the function can only be called via unsigned transaction.
+            ensure_root(origin)?;
+
+            MadaraRuntimeOrigin::<T>::put(address);
+
+            Ok(())
+        }
+
+        #[pallet::call_index(6)]
+        #[pallet::weight({0})]
+        pub fn madara_executor_invoke(origin: OriginFor<T>, transaction: InvokeTransaction) -> DispatchResult {
+            // This ensures that the function can only be called via unsigned transaction.
+            // T::MadaraExecutor::ensure_origin(origin)?;
+            ensure_root(origin)?;
+
+            let input_transaction = transaction;
+
+            let chain_id = Self::chain_id();
+            let transaction = input_transaction.into_executable::<T::SystemHash>(chain_id, false);
+
+            let sender_address = match &transaction.tx {
+                starknet_api::transaction::InvokeTransaction::V0(tx) => tx.contract_address,
+                starknet_api::transaction::InvokeTransaction::V1(tx) => tx.sender_address,
+            };
+            // Check if contract is deployed
+            ensure!(ContractClassHashes::<T>::contains_key(sender_address), Error::<T>::AccountNotDeployed);
+            if let Some(madara_runtime_origin) = Self::madara_runtime_origin(){
+                ensure!(sender_address == madara_runtime_origin, Error::<T>::MadaraRuntimeOriginSenderAddressOnly);
+            }
+
+            // Execute
+            let tx_execution_infos = transaction
+                .execute(
+                    &mut BlockifierStateAdapter::<T>::default(),
+                    &Self::get_block_context(),
+                    false,
+                    true,
+                    true,
+                )
+                .map_err(|e| {
+                    log::error!("failed to execute invoke tx: {:?}", e);
+                    Error::<T>::TransactionExecutionFailed
+                })?;
+
+            println!("{:?}", tx_execution_infos.execute_call_info.as_ref().unwrap().execution.retdata);
+
+            let tx_hash = transaction.tx_hash;
+            Self::emit_and_store_tx_and_fees_events(
+                tx_hash,
+                tx_execution_infos.execute_call_info,
+                tx_execution_infos.fee_transfer_call_info,
+            );
+
+            Self::store_transaction(tx_hash, Transaction::Invoke(input_transaction), tx_execution_infos.revert_error);
+
+            Ok(())
+        }
+
+        #[pallet::call_index(7)]
+        #[pallet::weight({0})]
+        pub fn madara_executor_invoke_curated_call(origin: OriginFor<T>, madara_executor_calls: MadaraExecutorCalls) -> DispatchResult {
+            // This ensures that the function can only be called via unsigned transaction.
+            // T::MadaraExecutor::ensure_origin(origin)?;
+            ensure_root(origin)?;
+
+            let input_transaction = madara_executor_calls.to_invoke_transaction_v1(Self::madara_runtime_origin().ok_or(Error::<T>::NoMadaraRuntimeOriginDefined)?, Self::madara_executor_target().ok_or(Error::<T>::NoMadaraExecutorTargetDefined)?);
+
+            let chain_id = Self::chain_id();
+            let transaction = input_transaction.into_executable::<T::SystemHash>(chain_id, false);
+
+            let sender_address = match &transaction.tx {
+                starknet_api::transaction::InvokeTransaction::V0(tx) => tx.contract_address,
+                starknet_api::transaction::InvokeTransaction::V1(tx) => tx.sender_address,
+            };
+            // Check if contract is deployed
+            ensure!(ContractClassHashes::<T>::contains_key(sender_address), Error::<T>::AccountNotDeployed);
+            if let Some(madara_runtime_origin) = Self::madara_runtime_origin(){
+                ensure!(sender_address == madara_runtime_origin, Error::<T>::MadaraRuntimeOriginSenderAddressOnly);
+            }
+
+            // Execute
+            let tx_execution_infos = transaction
+                .execute(
+                    &mut BlockifierStateAdapter::<T>::default(),
+                    &Self::get_block_context(),
+                    false,
+                    true,
+                    true,
+                )
+                .map_err(|e| {
+                    log::error!("failed to execute invoke tx: {:?}", e);
+                    Error::<T>::TransactionExecutionFailed
+                })?;
+
+            ensure!(tx_execution_infos.revert_error.is_none(), Error::<T>::CallsExecutionFailed);
+            println!("{:?}", tx_execution_infos.execute_call_info.as_ref().unwrap().execution.retdata);
+            ensure!(tx_execution_infos.execute_call_info.is_some(), Error::<T>::CallsExecutionCallInfoMissing);
+
+            let madara_executor_calls_results: MadaraExecutorCallsResults = madara_executor_calls.get_calls_results((&tx_execution_infos.execute_call_info.as_ref().expect("ensure checked").execution.retdata).into())
+                                                                                .map_err(|_|Error::<T>::RetdataDecodingFailed)?;
+
+
+            println!("{:?}", madara_executor_calls_results);
+
+            let tx_hash = transaction.tx_hash;
+            Self::emit_and_store_tx_and_fees_events(
+                tx_hash,
+                tx_execution_infos.execute_call_info,
+                tx_execution_infos.fee_transfer_call_info,
+            );
+
+            Self::store_transaction(tx_hash, Transaction::Invoke(mp_transactions::InvokeTransaction::V1(input_transaction)), tx_execution_infos.revert_error);
+
+            Ok(())
+        }
+
         /// The invoke transaction is the main transaction type used to invoke contract functions in
         /// Starknet.
         /// See `https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#invoke_transaction`.
@@ -491,6 +860,9 @@ pub mod pallet {
             };
             // Check if contract is deployed
             ensure!(ContractClassHashes::<T>::contains_key(sender_address), Error::<T>::AccountNotDeployed);
+            if let Some(madara_runtime_origin) = Self::madara_runtime_origin(){
+                ensure!(sender_address != madara_runtime_origin, Error::<T>::MadaraRuntimeOriginIsPrivileged);
+            }
 
             // Execute
             let tx_execution_infos = transaction
@@ -503,9 +875,11 @@ pub mod pallet {
                 )
                 .map_err(|e| {
                     log::error!("failed to execute invoke tx: {:?}", e);
+                    println!("{:#?}", e);
                     Error::<T>::TransactionExecutionFailed
                 })?;
 
+                println!("{:#?}", tx_execution_infos);
             let tx_hash = transaction.tx_hash;
             Self::emit_and_store_tx_and_fees_events(
                 tx_hash,
@@ -1153,7 +1527,7 @@ impl<T: Config> Pallet<T> {
             transactions,
             &Self::get_block_context(),
             T::DisableNonceValidation::get(),
-            disable_fee_charging,
+            false,
             chain_id,
         );
 

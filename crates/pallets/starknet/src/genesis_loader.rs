@@ -45,6 +45,8 @@ pub struct GenesisData {
     pub storage: Vec<(ContractStorageKey, StorageValue)>,
     pub fee_token_address: ContractAddress,
     pub seq_addr_updated: bool,
+    pub madara_runtime_origin: ContractAddress,
+    pub madara_executor_target: ContractAddress,
 }
 
 #[derive(Constructor)]
@@ -110,6 +112,8 @@ impl<T: crate::Config> From<GenesisLoader> for GenesisConfig<T> {
             })
             .collect::<Vec<_>>();
         let fee_token_address = Felt252Wrapper(loader.data.fee_token_address.0).into();
+        let madara_runtime_origin = Felt252Wrapper(loader.data.madara_runtime_origin.0).into();
+        let madara_executor_target = Felt252Wrapper(loader.data.madara_executor_target.0).into();
 
         GenesisConfig {
             contracts,
@@ -117,6 +121,8 @@ impl<T: crate::Config> From<GenesisLoader> for GenesisConfig<T> {
             storage,
             fee_token_address,
             seq_addr_updated: loader.data.seq_addr_updated,
+            madara_runtime_origin: madara_runtime_origin,
+            madara_executor_target: madara_executor_target,
             ..Default::default()
         }
     }
@@ -162,7 +168,7 @@ mod tests {
         let loader: GenesisData = serde_json::from_str(include_str!("./tests/mock/genesis.json")).unwrap();
 
         // Then
-        assert_eq!(13, loader.contract_classes.len());
+        assert_eq!(15, loader.contract_classes.len());
     }
 
     #[test]
@@ -175,6 +181,8 @@ mod tests {
         let storage_key = FieldElement::from(3u8).into();
         let storage_value = FieldElement::from(4u8).into();
         let fee_token_address = FieldElement::from(5u8).into();
+        let madara_runtime_origin = FieldElement::from(6u8).into();
+        let madara_executor_target = FieldElement::from(7u8).into();
 
         let genesis_loader = GenesisData {
             contract_classes: vec![(class_hash, class)],
@@ -182,13 +190,15 @@ mod tests {
             storage: vec![((contract_address, storage_key), storage_value)],
             fee_token_address,
             seq_addr_updated: false,
+            madara_runtime_origin,
+            madara_executor_target
         };
 
         // When
         let serialized_loader = serde_json::to_string(&genesis_loader).unwrap();
 
         // Then
-        let expected = r#"{"contract_classes":[["0x1",{"path":"cairo-contracts/ERC20.json","version":0}]],"contracts":[["0x2","0x1"]],"storage":[[["0x2","0x3"],"0x4"]],"fee_token_address":"0x5","seq_addr_updated":false}"#;
+        let expected = r#"{"contract_classes":[["0x1",{"path":"cairo-contracts/ERC20.json","version":0}]],"contracts":[["0x2","0x1"]],"storage":[[["0x2","0x3"],"0x4"]],"fee_token_address":"0x5","seq_addr_updated":false,"madara_runtime_origin":"0x6","madara_executor_target":"0x7"}"#;
         assert_eq!(expected, serialized_loader);
     }
 }

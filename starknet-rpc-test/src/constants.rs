@@ -27,6 +27,11 @@ pub const ARGENT_CONTRACT_ADDRESS: &str = "0x00000000000000000000000000000000000
 pub const MAX_U256: &str = "0xffffffffffffffffffffffffffffffff";
 pub const MAX_FEE_OVERRIDE: &str = "0x100000";
 
+pub const MADARA_RUNTIME_ORIGIN_CONTRACT_ADDRESS: &str =
+    "0x555";
+pub const CONTRACT_TEST_CONTRACT_ADDRESS: &str =
+    "0x454545";
+
 // Need to use `from_mont` because this needs to be a constant function call
 /// ChainId for Starknet Goerli testnet
 pub const SN_GOERLI_CHAIN_ID: FieldElement =

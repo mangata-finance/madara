@@ -24,6 +24,11 @@ pub const UNAUTHORIZED_INNER_CALL_ACCOUNT_CLASS_HASH_CAIRO_0: &str =
 pub const MULTIPLE_EVENT_EMITTING_CONTRACT_ADDRESS: &str =
     "0x051a78e741e5af2fec34b695679bc6891742439f7afb8484ecd7766661ad02cf";
 
+pub const MADARA_RUNTIME_ORIGIN_CONTRACT_ADDRESS: &str =
+    "0x555";
+pub const CONTRACT_TEST_CONTRACT_ADDRESS: &str =
+    "0x454545";
+
 // salts for address calculation
 lazy_static! {
     pub static ref SALT: Felt252Wrapper =

@@ -83,6 +83,7 @@ hexlit = "0.5.5"
 assert_matches = "1.5.0"
 starknet-ff = { workspace = true }
 project-root = "0.2.2"
+env_logger = "0.9.0"
 
 [features]
 default = ["std"]

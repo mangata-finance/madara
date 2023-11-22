@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use madara_runtime::{AuraConfig, GenesisConfig, GrandpaConfig, SealingMode, SystemConfig, WASM_BINARY};
+use madara_runtime::{AuraConfig, GenesisConfig, GrandpaConfig, SealingMode, SystemConfig, WASM_BINARY, StarknetConfig};
 use mp_felt::Felt252Wrapper;
 use pallet_starknet::genesis_loader::{GenesisData, GenesisLoader, HexFelt};
 use sc_service::{BasePath, ChainType};
@@ -66,7 +66,9 @@ pub fn development_config(sealing: SealingMode, base_path: BasePath) -> Result<D
         chain_id,
         ChainType::Development,
         move || {
-            let genesis_loader = load_genesis(base_path.config_dir(chain_id));
+            // let genesis_loader = load_genesis(base_path.config_dir(chain_id));
+            let genesis_loader = load_genesis(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../").join("configs"));
+            // let local_genesis_loader = load_genesis(env!("CARGO_MANIFEST_DIR"));
 
             // Logging the development account
             print_development_accounts(&genesis_loader);
@@ -74,6 +76,7 @@ pub fn development_config(sealing: SealingMode, base_path: BasePath) -> Result<D
             DevGenesisExt {
                 genesis_config: testnet_genesis(
                     genesis_loader,
+                    // local_genesis_loader,
                     wasm_binary,
                     // Initial PoA authorities
                     vec![authority_keys_from_seed("Alice")],
@@ -154,12 +157,22 @@ pub fn local_testnet_config(base_path: BasePath, chain_id: &str) -> Result<Chain
 
 fn load_genesis(data_path: PathBuf) -> GenesisLoader {
     let genesis_path = data_path.join(GENESIS_ASSETS_DIR).join(GENESIS_ASSETS_FILE);
+    println!("genesis_path - {:?}", genesis_path);
     let genesis_file_content = std::fs::read_to_string(genesis_path)
         .expect("Failed to read genesis file. Please run `madara setup` before opening an issue.");
     let genesis_data: GenesisData = serde_json::from_str(&genesis_file_content).expect("Failed loading genesis");
 
     GenesisLoader::new(data_path, genesis_data)
 }
+
+// fn load_local_genesis(data_path: PathBuf) -> LocalGenesisLoader {
+//     let genesis_path = data_path.join(GENESIS_ASSETS_DIR).join(GENESIS_ASSETS_FILE);
+//     let genesis_file_content = std::fs::read_to_string(genesis_path)
+//         .expect("Failed to read genesis file. Please run `madara setup` before opening an issue.");
+//     let genesis_data: LocalGenesisData = serde_json::from_str(&genesis_file_content).expect("Failed loading genesis");
+
+//     LocalGenesisLoader::new(data_path, genesis_data)
+// }
 
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(

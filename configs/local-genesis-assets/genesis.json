@@ -88,20 +88,6 @@
         "path": "genesis-assets/UniversalDeployer.json",
         "version": 0
       }
-    ],
-    [
-      "0x676767",
-      {
-        "path": "genesis-assets/contracts_Test.casm.json",
-        "version": 1
-      }
-    ],
-    [
-      "0x121212",
-      {
-        "path": "genesis-assets/madara_local_contracts_Account.casm.json",
-        "version": 1
-      }
     ]
   ],
   "contracts": [
@@ -147,34 +133,10 @@
     ],
     [
       "0x555",
-      "0x121212"
-    ],
-    [
-      "0x454545", "0x676767"
+      "0x06f0d6f6ae72e1a507ff4b65181291642889742dbf8f1a53e9ec1c595d01ba7d"
     ]
   ],
   "storage": [
-    [
-      [
-        "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
-        "0x341c1bdfd89f69748aa00b5742b03adbffd79b8e80cab5c50d91cd8c2a79be1"
-      ],
-      "0x4574686572"
-    ],
-    [
-      [
-        "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
-        "0x0b6ce5410fca59d078ee9b2a4371a9d684c530d697c64fbef0ae6d5e8f0ac72"
-      ],
-      "0x455448"
-    ],
-    [
-      [
-        "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
-        "0x1f0d4aa99431d246bac9b8e48c33e888245b15e9678f64f9bdfc8823dc8f979"
-      ],
-      "0x12"
-    ],
     [
       [
         "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
@@ -269,20 +231,12 @@
     [
       [
         "0x555",
-        "0x03b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4"
+        "0x1ccc09c8a19948e048de7add6929589945e25f22059c7345aaf7837188d8d05"
       ],
       "0x88888"
-    ],
-    [
-      [
-        "0x454545",
-        "0x02016836a56b71f0d02689e69e326f4f4c1b9057164ef592671cf0d37c8040c0"
-      ],
-      "0x555"
     ]
   ],
   "fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
   "seq_addr_updated": true,
-  "madara_runtime_origin": "0x555",
-  "madara_executor_target": "0x454545"
+  "madara_runtime_origin": "0x88888"
 }

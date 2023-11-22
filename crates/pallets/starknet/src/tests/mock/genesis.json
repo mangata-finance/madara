@@ -90,6 +90,20 @@
         "path": "./cairo-contracts/build/emit_multiple_events_across_contracts.json",
         "version": 0
       }
+    ],
+    [
+      "0x676767",
+      {
+        "path": "./configs/genesis-assets/contracts_Test.casm.json",
+        "version": 1
+      }
+    ],
+    [
+      "0x121212",
+      {
+        "path": "./configs/genesis-assets/madara_local_contracts_Account.casm.json",
+        "version": 1
+      }
     ]
   ],
   "contracts": [
@@ -144,6 +158,13 @@
     [
       "0x051a78e741e5af2fec34b695679bc6891742439f7afb8484ecd7766661ad02cf",
       "0x92000"
+    ],
+    [
+      "0x555",
+      "0x121212"
+    ],
+    [
+      "0x454545", "0x676767"
     ]
   ],
   "storage": [
@@ -258,8 +279,24 @@
         "0x238cf5ef6d6264a50d29a47fdf07ec9b7a8e9873214fa58179c5bb40933fdcb"
       ],
       "0x041a78e741e5af2fec34b695679bc6891742439f7afb8484ecd7766661ad02cf"
+    ],
+    [
+      [
+        "0x555",
+        "0x03b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4"
+      ],
+      "0x88888"
+    ],
+    [
+      [
+        "0x454545",
+        "0x02016836a56b71f0d02689e69e326f4f4c1b9057164ef592671cf0d37c8040c0"
+      ],
+      "0x555"
     ]
   ],
   "fee_token_address": "0x00000000000000000000000000000000000000000000000000000000000000AA",
-  "seq_addr_updated": true
+  "seq_addr_updated": true,
+  "madara_runtime_origin": "0x555",
+  "madara_executor_target": "0x454545"
 }

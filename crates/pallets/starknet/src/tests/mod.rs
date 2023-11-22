@@ -25,6 +25,7 @@ mod l1_message;
 mod no_nonce_validation;
 mod query_tx;
 mod sequencer_address;
+mod madara_runtime_origin;
 
 mod block;
 mod constants;

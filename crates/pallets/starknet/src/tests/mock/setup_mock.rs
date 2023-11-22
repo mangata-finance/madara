@@ -1,4 +1,5 @@
 use frame_support::traits::GenesisBuild;
+use std::path::PathBuf;
 
 use crate::genesis_loader::{GenesisData, GenesisLoader};
 use crate::{Config, GenesisConfig};
@@ -128,11 +129,27 @@ pub fn new_test_ext<T: Config>() -> sp_io::TestExternalities {
 
     let genesis_data: GenesisData = serde_json::from_str(std::include_str!("./genesis.json")).unwrap();
     let genesis_loader = GenesisLoader::new(project_root::get_project_root().unwrap(), genesis_data);
+
+	// let genesis_loader = load_genesis(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../").join("configs"));
     let genesis: GenesisConfig<T> = genesis_loader.into();
 
     genesis.assimilate_storage(&mut t).unwrap();
 
     t.into()
+}
+
+
+pub const GENESIS_ASSETS_DIR: &str = "genesis-assets/";
+pub const GENESIS_ASSETS_FILE: &str = "genesis.json";
+
+fn load_genesis(data_path: PathBuf) -> GenesisLoader {
+    let genesis_path = data_path.join(GENESIS_ASSETS_DIR).join(GENESIS_ASSETS_FILE);
+    println!("genesis_path - {:?}", genesis_path);
+    let genesis_file_content = std::fs::read_to_string(genesis_path)
+        .expect("Failed to read genesis file. Please run `madara setup` before opening an issue.");
+    let genesis_data: GenesisData = serde_json::from_str(&genesis_file_content).expect("Failed loading genesis");
+
+    GenesisLoader::new(data_path, genesis_data)
 }
 
 mock_runtime!(default_mock, false, false);
