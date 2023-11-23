@@ -25,7 +25,7 @@ use crate::tests::{
     get_invoke_nonce_dummy, get_invoke_openzeppelin_dummy, get_storage_read_write_dummy, set_nonce, fees_disabled::get_balance_default_mock,
     utils::{build_transfer_invoke_transaction},
 };
-use crate::{Call, Config, Error, Event, StorageView};
+use crate::{Call, Config, Error, Event, StorageView, MadaraExecutorCalls, MadaraExecutorCallsResults, MadaraExecutorCall, MadaraExecutorCallResult};
 use crate::types::BuildTransferInvokeTransaction;
 
 #[test]
@@ -428,3 +428,94 @@ fn madara_runtime_origin_with_madara_executor_invoke_does_not_validate_or_update
     });
 }
 
+#[test]
+fn madara_executor_invoke_curated_call_works_with_single_call() {
+    new_test_ext::<MockRuntime>().execute_with(|| {
+        basic_test_setup(2);
+		let _ = env_logger::try_init();
+
+        let calls_res = Starknet::madara_executor_invoke_curated_call_inner(
+            MadaraExecutorCalls(
+                vec![MadaraExecutorCall::EchoU8(7_u8)]
+            )
+        ).expect("operation is sucessful");
+        assert_eq!(calls_res, MadaraExecutorCallsResults(vec![MadaraExecutorCallResult::EchoU8Result(7_u8)]));
+
+    });
+}
+
+#[test]
+fn madara_executor_invoke_curated_call_works_with_multiple_calls() {
+    new_test_ext::<MockRuntime>().execute_with(|| {
+        basic_test_setup(2);
+		let _ = env_logger::try_init();
+
+        let calls_res = Starknet::madara_executor_invoke_curated_call_inner(
+            MadaraExecutorCalls(
+                vec![
+                    MadaraExecutorCall::EchoU8(7_u8),
+                    MadaraExecutorCall::EchoU8(0_u8),
+                    MadaraExecutorCall::EchoU8a(vec![1_u8, 2_u8, 3_u8, 8_u8, 11_u8]),
+                    MadaraExecutorCall::EchoU8a(vec![]),
+                    MadaraExecutorCall::EchoU8aU8a(vec![157_u8, 2_u8, 3_u8, 8_u8, 110_u8], vec![181_u8, 123_u8]),
+                    MadaraExecutorCall::EchoU8aU8a(vec![157_u8, 2_u8, 3_u8, 8_u8, 110_u8], vec![]),
+                    MadaraExecutorCall::EchoU8aU8a(vec![], vec![181_u8, 123_u8]),
+                    MadaraExecutorCall::EchoU8aU8a(vec![], vec![]),
+                    MadaraExecutorCall::EchoU8U128(4_u8, 19_u128),
+                    MadaraExecutorCall::EchoTupleU8U128((41_u8, 191_u128)),
+                    MadaraExecutorCall::EchoOptionU8U128(Some((6_u8, 13_u128))),
+                    MadaraExecutorCall::EchoOptionU8U128(None)
+                ]
+            )
+        ).expect("operation is sucessful");
+        assert_eq!(calls_res, MadaraExecutorCallsResults(
+            vec![
+                MadaraExecutorCallResult::EchoU8Result(7_u8),
+                MadaraExecutorCallResult::EchoU8Result(0_u8),
+                MadaraExecutorCallResult::EchoU8aResult(vec![1_u8, 2_u8, 3_u8, 8_u8, 11_u8]),
+                MadaraExecutorCallResult::EchoU8aResult(vec![]),
+                MadaraExecutorCallResult::EchoU8aU8aResult(vec![157_u8, 2_u8, 3_u8, 8_u8, 110_u8], vec![181_u8, 123_u8]),
+                MadaraExecutorCallResult::EchoU8aU8aResult(vec![157_u8, 2_u8, 3_u8, 8_u8, 110_u8], vec![]),
+                MadaraExecutorCallResult::EchoU8aU8aResult(vec![], vec![181_u8, 123_u8]),
+                MadaraExecutorCallResult::EchoU8aU8aResult(vec![], vec![]),
+                MadaraExecutorCallResult::EchoU8U128Result(4_u8, 19_u128),
+                MadaraExecutorCallResult::EchoTupleU8U128Result((41_u8, 191_u128)),
+                MadaraExecutorCallResult::EchoOptionU8U128Result(Some((6_u8, 13_u128))),
+                MadaraExecutorCallResult::EchoOptionU8U128Result(None)
+            ]
+        ));
+
+    });
+}
+
+// #[test]
+// fn madara_executor_invoke_curated_call_works_test() {
+//     new_test_ext::<MockRuntime>().execute_with(|| {
+//         basic_test_setup(2);
+// 		let _ = env_logger::try_init();
+
+//         let calls_res = Starknet::madara_executor_invoke_curated_call_inner(
+//             MadaraExecutorCalls(
+//                 vec![
+//                     MadaraExecutorCall::EchoU8a(vec![8_u8, 9_u8]),
+//                     // MadaraExecutorCall::EchoU8(7_u8),
+//                     // MadaraExecutorCall::EchoU8a(vec![1_u8, 2_u8, 3_u8, 8_u8, 11_u8]),
+//                     // MadaraExecutorCall::EchoU8U128(4_u8, 19_u128),
+//                     // MadaraExecutorCall::EchoOptionU8U128(Some((6_u8, 13_u128))),
+//                     // MadaraExecutorCall::EchoOptionU8U128(None)
+//                 ]
+//             )
+//         ).expect("operation is sucessful");
+//         assert_eq!(calls_res, MadaraExecutorCallsResults(
+//             vec![
+//                 MadaraExecutorCallResult::EchoU8aResult(vec![8_u8, 9_u8]),
+//                 // MadaraExecutorCallResult::EchoU8Result(7_u8),
+//                 // MadaraExecutorCallResult::EchoU8aResult(vec![1_u8, 2_u8, 3_u8, 8_u8, 11_u8]),
+//                 // MadaraExecutorCallResult::EchoU8U128Result(4_u8, 19_u128),
+//                 // MadaraExecutorCallResult::EchoOptionU8U128Result(Some((6_u8, 13_u128))),
+//                 // MadaraExecutorCallResult::EchoOptionU8U128Result(None)
+//             ]
+//         ));
+
+//     });
+// }

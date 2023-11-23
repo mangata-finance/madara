@@ -121,7 +121,9 @@ pub struct MadaraExecutorCallsResults(Vec<MadaraExecutorCallResult>);
 pub enum MadaraExecutorCallResult{
     EchoU8Result(u8),
     EchoU8aResult(Vec<u8>),
-    EchoU8U128Result((u8, u128)),
+    EchoU8aU8aResult(Vec<u8>, Vec<u8>),
+    EchoU8U128Result(u8, u128),
+    EchoTupleU8U128Result((u8, u128)),
     EchoOptionU8U128Result(Option<(u8, u128)>),
 }
 
@@ -129,7 +131,9 @@ pub enum MadaraExecutorCallResult{
 pub enum MadaraExecutorCall{
     EchoU8(u8),
     EchoU8a(Vec<u8>),
-    EchoU8U128((u8, u128)),
+    EchoU8aU8a(Vec<u8>, Vec<u8>),
+    EchoU8U128(u8, u128),
+    EchoTupleU8U128((u8, u128)),
     EchoOptionU8U128(Option<(u8, u128)>),
 }
 
@@ -144,11 +148,26 @@ impl From<MadaraExecutorCall> for Vec<Felt252Wrapper>{
             },
             MadaraExecutorCall::EchoU8a(i) => {
                 vec_felt.push(Felt252Wrapper::from(get_selector_from_name("echo_u8a").unwrap()));
+                vec_felt.push((i.len() + 1).into());
                 vec_felt.push(i.len().into());
                 vec_felt.append(&mut i.into_iter().map(move |x| x.into()).collect::<Vec<Felt252Wrapper>>());
             },
-            MadaraExecutorCall::EchoU8U128((x,y)) => {
+            MadaraExecutorCall::EchoU8aU8a(i, j) => {
+                vec_felt.push(Felt252Wrapper::from(get_selector_from_name("echo_u8a_u8a").unwrap()));
+                vec_felt.push((i.len() + 1 + j.len() + 1).into());
+                vec_felt.push(i.len().into());
+                vec_felt.append(&mut i.into_iter().map(move |x| x.into()).collect::<Vec<Felt252Wrapper>>());
+                vec_felt.push(j.len().into());
+                vec_felt.append(&mut j.into_iter().map(move |x| x.into()).collect::<Vec<Felt252Wrapper>>());
+            },
+            MadaraExecutorCall::EchoU8U128(x,y) => {
                 vec_felt.push(Felt252Wrapper::from(get_selector_from_name("echo_u8_u128").unwrap()));
+                vec_felt.push(2_u8.into());
+                vec_felt.push(x.into());
+                vec_felt.push(y.into());
+            },
+            MadaraExecutorCall::EchoTupleU8U128((x,y)) => {
+                vec_felt.push(Felt252Wrapper::from(get_selector_from_name("echo_tuple_u8_u128").unwrap()));
                 vec_felt.push(2_u8.into());
                 vec_felt.push(x.into());
                 vec_felt.push(y.into());
@@ -184,16 +203,40 @@ impl MadaraExecutorCall {
             MadaraExecutorCall::EchoU8a(_) => {
                 ensure!(buffer.len() >= 1, ());
                 let number_of_elements = Felt252Wrapper::from(buffer[0]).try_into().map_err(|_|())?;
-                ensure!(buffer.len() >= number_of_elements+1, ());
+                ensure!(buffer.len() == number_of_elements+1, ());
                 let mut u8a: Vec<u8> = Vec::<u8>::new();
                 for i in 0..number_of_elements{
                     u8a.push(Felt252Wrapper::from(buffer[i+1]).try_into().map_err(|_|())?)
                 }
                 Ok(MadaraExecutorCallResult::EchoU8aResult(u8a))
             },
-            MadaraExecutorCall::EchoU8U128(_) => {
+            MadaraExecutorCall::EchoU8aU8a(_, _) => {
+                ensure!(buffer.len() >= 1, ());
+                let number_of_elements = Felt252Wrapper::from(buffer[0]).try_into().map_err(|_|())?;
+                ensure!(buffer.len() >= number_of_elements+2, ());
+                let number_of_elements_2 = Felt252Wrapper::from(buffer[number_of_elements+1]).try_into().map_err(|_|())?;
+                ensure!(buffer.len() == number_of_elements+number_of_elements_2+2, ());
+
+                let mut u8a: Vec<u8> = Vec::<u8>::new();
+                for i in 0..number_of_elements{
+                    u8a.push(Felt252Wrapper::from(buffer[i+1]).try_into().map_err(|_|())?)
+                }
+                let mut u8a_2: Vec<u8> = Vec::<u8>::new();
+                for i in 0..number_of_elements_2{
+                    u8a_2.push(Felt252Wrapper::from(buffer[i+number_of_elements+2]).try_into().map_err(|_|())?)
+                }
+                Ok(MadaraExecutorCallResult::EchoU8aU8aResult(u8a, u8a_2))
+            },
+            MadaraExecutorCall::EchoU8U128(_, _) => {
                 ensure!(buffer.len() == 2, ());
-                Ok(MadaraExecutorCallResult::EchoU8U128Result((
+                Ok(MadaraExecutorCallResult::EchoU8U128Result(
+                    Felt252Wrapper::from(buffer[0]).try_into().map_err(|_|())?,
+                    Felt252Wrapper::from(buffer[1]).try_into().map_err(|_|())?
+                ))
+            },
+            MadaraExecutorCall::EchoTupleU8U128(_) => {
+                ensure!(buffer.len() == 2, ());
+                Ok(MadaraExecutorCallResult::EchoTupleU8U128Result((
                     Felt252Wrapper::from(buffer[0]).try_into().map_err(|_|())?,
                     Felt252Wrapper::from(buffer[1]).try_into().map_err(|_|())?
                 )))
@@ -780,55 +823,7 @@ pub mod pallet {
             // This ensures that the function can only be called via unsigned transaction.
             // T::MadaraExecutor::ensure_origin(origin)?;
             ensure_root(origin)?;
-
-            let input_transaction = madara_executor_calls.to_invoke_transaction_v1(Self::madara_runtime_origin().ok_or(Error::<T>::NoMadaraRuntimeOriginDefined)?, Self::madara_executor_target().ok_or(Error::<T>::NoMadaraExecutorTargetDefined)?);
-
-            let chain_id = Self::chain_id();
-            let transaction = input_transaction.into_executable::<T::SystemHash>(chain_id, false);
-
-            let sender_address = match &transaction.tx {
-                starknet_api::transaction::InvokeTransaction::V0(tx) => tx.contract_address,
-                starknet_api::transaction::InvokeTransaction::V1(tx) => tx.sender_address,
-            };
-            // Check if contract is deployed
-            ensure!(ContractClassHashes::<T>::contains_key(sender_address), Error::<T>::AccountNotDeployed);
-            if let Some(madara_runtime_origin) = Self::madara_runtime_origin(){
-                ensure!(sender_address == madara_runtime_origin, Error::<T>::MadaraRuntimeOriginSenderAddressOnly);
-            }
-
-            // Execute
-            let tx_execution_infos = transaction
-                .execute(
-                    &mut BlockifierStateAdapter::<T>::default(),
-                    &Self::get_block_context(),
-                    false,
-                    true,
-                    true,
-                )
-                .map_err(|e| {
-                    log::error!("failed to execute invoke tx: {:?}", e);
-                    Error::<T>::TransactionExecutionFailed
-                })?;
-
-            ensure!(tx_execution_infos.revert_error.is_none(), Error::<T>::CallsExecutionFailed);
-            println!("{:?}", tx_execution_infos.execute_call_info.as_ref().unwrap().execution.retdata);
-            ensure!(tx_execution_infos.execute_call_info.is_some(), Error::<T>::CallsExecutionCallInfoMissing);
-
-            let madara_executor_calls_results: MadaraExecutorCallsResults = madara_executor_calls.get_calls_results((&tx_execution_infos.execute_call_info.as_ref().expect("ensure checked").execution.retdata).into())
-                                                                                .map_err(|_|Error::<T>::RetdataDecodingFailed)?;
-
-
-            println!("{:?}", madara_executor_calls_results);
-
-            let tx_hash = transaction.tx_hash;
-            Self::emit_and_store_tx_and_fees_events(
-                tx_hash,
-                tx_execution_infos.execute_call_info,
-                tx_execution_infos.fee_transfer_call_info,
-            );
-
-            Self::store_transaction(tx_hash, Transaction::Invoke(mp_transactions::InvokeTransaction::V1(input_transaction)), tx_execution_infos.revert_error);
-
+            Self::madara_executor_invoke_curated_call_inner(madara_executor_calls)?;
             Ok(())
         }
 
@@ -1212,6 +1207,61 @@ pub mod pallet {
 
 /// The Starknet pallet internal functions.
 impl<T: Config> Pallet<T> {
+
+    pub fn madara_executor_invoke_curated_call_inner(madara_executor_calls: MadaraExecutorCalls) -> Result<MadaraExecutorCallsResults, DispatchError> {
+
+        let input_transaction = madara_executor_calls.to_invoke_transaction_v1(Self::madara_runtime_origin().ok_or(Error::<T>::NoMadaraRuntimeOriginDefined)?, Self::madara_executor_target().ok_or(Error::<T>::NoMadaraExecutorTargetDefined)?);
+
+
+        println!("{:#?}", input_transaction);
+        let chain_id = Self::chain_id();
+        let transaction = input_transaction.into_executable::<T::SystemHash>(chain_id, false);
+
+        let sender_address = match &transaction.tx {
+            starknet_api::transaction::InvokeTransaction::V0(tx) => tx.contract_address,
+            starknet_api::transaction::InvokeTransaction::V1(tx) => tx.sender_address,
+        };
+        // Check if contract is deployed
+        ensure!(ContractClassHashes::<T>::contains_key(sender_address), Error::<T>::AccountNotDeployed);
+        if let Some(madara_runtime_origin) = Self::madara_runtime_origin(){
+            ensure!(sender_address == madara_runtime_origin, Error::<T>::MadaraRuntimeOriginSenderAddressOnly);
+        }
+
+        // Execute
+        let tx_execution_infos = transaction
+            .execute(
+                &mut BlockifierStateAdapter::<T>::default(),
+                &Self::get_block_context(),
+                false,
+                true,
+                true,
+            )
+            .map_err(|e| {
+                log::error!("failed to execute invoke tx: {:?}", e);
+                Error::<T>::TransactionExecutionFailed
+            })?;
+
+        println!("{:#?}", tx_execution_infos.revert_error);
+        ensure!(tx_execution_infos.revert_error.is_none(), Error::<T>::CallsExecutionFailed);
+        println!("{:?}", tx_execution_infos.execute_call_info.as_ref().unwrap().execution.retdata);
+        ensure!(tx_execution_infos.execute_call_info.is_some(), Error::<T>::CallsExecutionCallInfoMissing);
+
+        let madara_executor_calls_results: MadaraExecutorCallsResults = madara_executor_calls.get_calls_results((&tx_execution_infos.execute_call_info.as_ref().expect("ensure checked").execution.retdata).into())
+                                                                            .map_err(|_|Error::<T>::RetdataDecodingFailed)?;
+        
+        println!("{:?}", madara_executor_calls_results);
+
+        let tx_hash = transaction.tx_hash;
+        Self::emit_and_store_tx_and_fees_events(
+            tx_hash,
+            tx_execution_infos.execute_call_info,
+            tx_execution_infos.fee_transfer_call_info,
+        );
+
+        Self::store_transaction(tx_hash, Transaction::Invoke(mp_transactions::InvokeTransaction::V1(input_transaction)), tx_execution_infos.revert_error);
+                                                                
+        Ok(madara_executor_calls_results)
+    }
     /// Returns the transaction for the Call
     ///
     /// # Arguments
