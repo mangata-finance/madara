@@ -803,7 +803,7 @@ pub mod pallet {
                     Error::<T>::TransactionExecutionFailed
                 })?;
 
-            println!("{:?}", tx_execution_infos.execute_call_info.as_ref().unwrap().execution.retdata);
+            // println!("{:?}", tx_execution_infos.execute_call_info.as_ref().unwrap().execution.retdata);
 
             let tx_hash = transaction.tx_hash;
             Self::emit_and_store_tx_and_fees_events(
@@ -870,11 +870,12 @@ pub mod pallet {
                 )
                 .map_err(|e| {
                     log::error!("failed to execute invoke tx: {:?}", e);
-                    println!("{:#?}", e);
+                    // println!("{:#?}", e);
                     Error::<T>::TransactionExecutionFailed
                 })?;
 
-                println!("{:#?}", tx_execution_infos);
+                log::info!("{:#?}", tx_execution_infos);
+                // println!("{:#?}", tx_execution_infos);
             let tx_hash = transaction.tx_hash;
             Self::emit_and_store_tx_and_fees_events(
                 tx_hash,
@@ -1213,7 +1214,7 @@ impl<T: Config> Pallet<T> {
         let input_transaction = madara_executor_calls.to_invoke_transaction_v1(Self::madara_runtime_origin().ok_or(Error::<T>::NoMadaraRuntimeOriginDefined)?, Self::madara_executor_target().ok_or(Error::<T>::NoMadaraExecutorTargetDefined)?);
 
 
-        println!("{:#?}", input_transaction);
+        // println!("{:#?}", input_transaction);
         let chain_id = Self::chain_id();
         let transaction = input_transaction.into_executable::<T::SystemHash>(chain_id, false);
 
@@ -1241,15 +1242,15 @@ impl<T: Config> Pallet<T> {
                 Error::<T>::TransactionExecutionFailed
             })?;
 
-        println!("{:#?}", tx_execution_infos.revert_error);
+        // println!("{:#?}", tx_execution_infos.revert_error);
         ensure!(tx_execution_infos.revert_error.is_none(), Error::<T>::CallsExecutionFailed);
-        println!("{:?}", tx_execution_infos.execute_call_info.as_ref().unwrap().execution.retdata);
+        // println!("{:?}", tx_execution_infos.execute_call_info.as_ref().unwrap().execution.retdata);
         ensure!(tx_execution_infos.execute_call_info.is_some(), Error::<T>::CallsExecutionCallInfoMissing);
 
         let madara_executor_calls_results: MadaraExecutorCallsResults = madara_executor_calls.get_calls_results((&tx_execution_infos.execute_call_info.as_ref().expect("ensure checked").execution.retdata).into())
                                                                             .map_err(|_|Error::<T>::RetdataDecodingFailed)?;
         
-        println!("{:?}", madara_executor_calls_results);
+        // println!("{:?}", madara_executor_calls_results);
 
         let tx_hash = transaction.tx_hash;
         Self::emit_and_store_tx_and_fees_events(

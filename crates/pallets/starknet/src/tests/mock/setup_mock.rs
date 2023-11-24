@@ -144,7 +144,7 @@ pub const GENESIS_ASSETS_FILE: &str = "genesis.json";
 
 fn load_genesis(data_path: PathBuf) -> GenesisLoader {
     let genesis_path = data_path.join(GENESIS_ASSETS_DIR).join(GENESIS_ASSETS_FILE);
-    println!("genesis_path - {:?}", genesis_path);
+    // println!("genesis_path - {:?}", genesis_path);
     let genesis_file_content = std::fs::read_to_string(genesis_path)
         .expect("Failed to read genesis file. Please run `madara setup` before opening an issue.");
     let genesis_data: GenesisData = serde_json::from_str(&genesis_file_content).expect("Failed loading genesis");

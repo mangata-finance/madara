@@ -109,6 +109,6 @@ path = "get_events.rs"
 name = "starknet_estimate_fee"
 path = "estimate_fee.rs"
 
-# [[test]]
-# name = "starknet_madara_runtime_origin"
-# path = "madara_runtime_origin.rs"
+[[test]]
+name = "starknet_madara_runtime_origin"
+path = "madara_runtime_origin.rs"

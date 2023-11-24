@@ -7,9 +7,10 @@ use starknet_core::types::contract::legacy::LegacyContractClass;
 use starknet_core::types::contract::{CompiledClass, SierraClass};
 use starknet_core::types::{BlockId, BlockTag, EmittedEvent, Event, FieldElement, FunctionCall, MsgToL1};
 use starknet_core::utils::get_selector_from_name;
-use starknet_providers::jsonrpc::{HttpTransport, JsonRpcClient};
-use starknet_providers::Provider;
+use starknet_providers::jsonrpc::{HttpTransport, HttpTransportError, JsonRpcClientError};
+use starknet_providers::{Provider, JsonRpcClient, ProviderError};
 use starknet_signers::{LocalWallet, SigningKey};
+use starknet_core::types::{MaybePendingTransactionReceipt};
 
 use crate::constants::{FEE_TOKEN_ADDRESS, MAX_FEE_OVERRIDE};
 use crate::{
@@ -73,6 +74,11 @@ pub fn build_deploy_account_tx<'a>(
 }
 
 pub trait AccountActions {
+    fn invoke_call(
+        &self,
+        calls: Vec<Call>,
+        nonce: Option<u64>,
+    ) -> TransactionExecution;
     fn transfer_tokens_u256(
         &self,
         recipient: FieldElement,
@@ -97,6 +103,20 @@ pub trait AccountActions {
 }
 
 impl AccountActions for SingleOwnerAccount<&JsonRpcClient<HttpTransport>, LocalWallet> {
+    fn invoke_call(
+        &self,
+        calls: Vec<Call>,
+        nonce: Option<u64>,
+    ) -> TransactionExecution {
+        // starknet-rs calls estimateFee with incorrect version which throws an error
+        let max_fee = FieldElement::from_hex_be(MAX_FEE_OVERRIDE).unwrap();
+
+        // TODO: add support for nonce with raw execution e.g https://github.com/0xSpaceShard/starknet-devnet-rs/blob/main/crates/starknet/src/starknet/add_invoke_transaction.rs#L10
+        match nonce {
+            Some(nonce) => self.execute(calls).max_fee(max_fee).nonce(nonce.into()),
+            None => self.execute(calls).max_fee(max_fee),
+        }
+    }
     fn transfer_tokens_u256(
         &self,
         recipient: FieldElement,
@@ -211,4 +231,47 @@ where
     }
 
     panic!("Max poll count exceeded.");
+}
+
+pub async fn poll<F, Fut>(f: F, polling_time_ms: u64, max_poll_count: u32) -> bool
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = bool>,
+{
+    for _poll_count in 0..max_poll_count {
+        if f().await {
+            return true; // The provided function returned true, exit safely.
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(polling_time_ms)).await;
+    }
+
+    false
+}
+
+pub type TransactionReceiptResult =
+    Result<MaybePendingTransactionReceipt, ProviderError<JsonRpcClientError<HttpTransportError>>>;
+
+pub async fn get_transaction_receipt(
+    rpc: &JsonRpcClient<HttpTransport>,
+    transaction_hash: FieldElement,
+) -> TransactionReceiptResult {
+    // there is a delay between the transaction being available at the client
+    // and the sealing of the block, hence sleeping for 100ms
+    assert_poll(|| async { rpc.get_transaction_receipt(transaction_hash).await.is_ok() }, 100, 20).await;
+
+    rpc.get_transaction_receipt(transaction_hash).await
+}
+
+pub async fn get_transaction_receipt_poll(
+    rpc: &JsonRpcClient<HttpTransport>,
+    transaction_hash: FieldElement,
+) -> Option<TransactionReceiptResult> {
+    // there is a delay between the transaction being available at the client
+    // and the sealing of the block, hence sleeping for 100ms
+    if !(poll(|| async { rpc.get_transaction_receipt(transaction_hash).await.is_ok() }, 100, 20).await){
+        return None;
+    };
+
+    Some(rpc.get_transaction_receipt(transaction_hash).await)
 }

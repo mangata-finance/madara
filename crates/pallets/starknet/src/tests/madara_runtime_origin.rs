@@ -40,7 +40,7 @@ fn madara_runtime_origin_test() {
 
 
         let internal_selector = Felt252Wrapper::from(get_selector_from_name("echo_u8a").unwrap());
-        println!("{:?}", internal_selector);
+        // println!("{:?}", internal_selector);
 
         assert_eq!(
             Starknet::get_storage_at(contract_test_contract_address.into(), get_storage_var_address("u8_storage", &[]).unwrap()).unwrap(),
@@ -84,7 +84,7 @@ fn madara_runtime_origin_with_madara_executor_invoke_on_privileged_entrypoint_wo
 
 
         let internal_selector = Felt252Wrapper::from(get_selector_from_name("privileged_write_u8").unwrap());
-        println!("{:?}", internal_selector);
+        // println!("{:?}", internal_selector);
 
         assert_eq!(
             Starknet::get_storage_at(contract_test_contract_address.into(), get_storage_var_address("u8_storage", &[]).unwrap()).unwrap(),
@@ -125,8 +125,8 @@ fn other_account_with_invoke_on_privileged_entrypoint_does_not_work() {
 
 
         let internal_selector = Felt252Wrapper::from(get_selector_from_name("privileged_write_u8").unwrap());
-        println!("{:?}", sender_account);
-        println!("{:?}", internal_selector);
+        // println!("{:?}", sender_account);
+        // println!("{:?}", internal_selector);
 
         assert_eq!(
             Starknet::get_storage_at(contract_test_contract_address.into(), get_storage_var_address("u8_storage", &[]).unwrap()).unwrap(),
@@ -170,8 +170,8 @@ fn other_account_entrancy_attempt_into_madara_runtime_origin_account_prevented()
         let internal_selector = Felt252Wrapper::from(get_selector_from_name("__execute__").unwrap());
         let contract_test_internal_selector = Felt252Wrapper::from(get_selector_from_name("privileged_write_u8").unwrap());
 
-        println!("{:?}", internal_selector);
-        println!("{:?}", contract_test_internal_selector);
+        // println!("{:?}", internal_selector);
+        // println!("{:?}", contract_test_internal_selector);
         assert_eq!(
             Starknet::get_storage_at(contract_test_contract_address.into(), get_storage_var_address("u8_storage", &[]).unwrap()).unwrap(),
             StarkFelt::from(Felt252Wrapper::from_hex_be("0x00").unwrap())
@@ -214,7 +214,7 @@ fn other_account_with_madara_executor_invoke_does_not_work() {
         let sender_account = get_account_address(None, AccountType::V0(AccountTypeV0Inner::NoValidate));
 
         let internal_selector = Felt252Wrapper::from(get_selector_from_name("privileged_write_u8").unwrap());
-        println!("{:?}", internal_selector);
+        // println!("{:?}", internal_selector);
 
         assert_eq!(
             Starknet::get_storage_at(contract_test_contract_address.into(), get_storage_var_address("u8_storage", &[]).unwrap()).unwrap(),
@@ -296,7 +296,7 @@ fn madara_runtime_origin_with_madara_executor_invoke_does_not_charge_fee() {
 
 
         let internal_selector = Felt252Wrapper::from(get_selector_from_name("privileged_write_u8").unwrap());
-        println!("{:?}", internal_selector);
+        // println!("{:?}", internal_selector);
 
         assert_eq!(
             Starknet::get_storage_at(contract_test_contract_address.into(), get_storage_var_address("u8_storage", &[]).unwrap()).unwrap(),
@@ -389,7 +389,7 @@ fn madara_runtime_origin_with_madara_executor_invoke_does_not_validate_or_update
 
 
         let internal_selector = Felt252Wrapper::from(get_selector_from_name("privileged_write_u8").unwrap());
-        println!("{:?}", internal_selector);
+        // println!("{:?}", internal_selector);
 
         assert_eq!(
             Starknet::get_storage_at(contract_test_contract_address.into(), get_storage_var_address("u8_storage", &[]).unwrap()).unwrap(),

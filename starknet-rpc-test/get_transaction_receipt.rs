@@ -14,25 +14,25 @@ use starknet_rpc_test::constants::{
     ARGENT_CONTRACT_ADDRESS, CAIRO_1_ACCOUNT_CONTRACT_CLASS_HASH, FEE_TOKEN_ADDRESS, SEQUENCER_ADDRESS, SIGNER_PRIVATE,
 };
 use starknet_rpc_test::fixtures::{madara, ThreadSafeMadaraClient};
-use starknet_rpc_test::utils::{
+use starknet_rpc_test::utils::{get_transaction_receipt,
     assert_eq_event, assert_eq_msg_to_l1, assert_poll, build_deploy_account_tx, build_oz_account_factory,
-    build_single_owner_account, AccountActions,
+    build_single_owner_account, AccountActions, TransactionReceiptResult
 };
 use starknet_rpc_test::{Transaction, TransactionResult};
 
-type TransactionReceiptResult =
-    Result<MaybePendingTransactionReceipt, ProviderError<JsonRpcClientError<HttpTransportError>>>;
+// type TransactionReceiptResult =
+//     Result<MaybePendingTransactionReceipt, ProviderError<JsonRpcClientError<HttpTransportError>>>;
 
-async fn get_transaction_receipt(
-    rpc: &JsonRpcClient<HttpTransport>,
-    transaction_hash: FieldElement,
-) -> TransactionReceiptResult {
-    // there is a delay between the transaction being available at the client
-    // and the sealing of the block, hence sleeping for 100ms
-    assert_poll(|| async { rpc.get_transaction_receipt(transaction_hash).await.is_ok() }, 100, 20).await;
+// async fn get_transaction_receipt(
+//     rpc: &JsonRpcClient<HttpTransport>,
+//     transaction_hash: FieldElement,
+// ) -> TransactionReceiptResult {
+//     // there is a delay between the transaction being available at the client
+//     // and the sealing of the block, hence sleeping for 100ms
+//     assert_poll(|| async { rpc.get_transaction_receipt(transaction_hash).await.is_ok() }, 100, 20).await;
 
-    rpc.get_transaction_receipt(transaction_hash).await
-}
+//     rpc.get_transaction_receipt(transaction_hash).await
+// }
 
 #[rstest]
 #[tokio::test]
